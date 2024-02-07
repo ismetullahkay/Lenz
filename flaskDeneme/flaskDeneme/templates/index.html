@@ -1,0 +1,99 @@
+<!--index.html-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask Object Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Diğer başlık etiketleri -->
+
+</head>
+<body>
+
+<div class="form-container">
+    <h1>Nesne Tespit Ekranı</h1>
+    {% if 'username' in session %}
+        <p>Mevcut Kullanıcı: {{ session['username'] }}</p>
+        <!-- Çıkış formunu ekleyin -->
+        <form action="/logout" method="get">
+            <input type="submit" value="Çıkış Yap">
+        </form>
+    {% else %}
+        <p>Henüz giriş yapılmamış.</p>
+        <!-- Giriş formu ekleyin -->
+        <form action="/login" method="get">
+            <input type="submit" value="Giriş Yap">
+        </form>
+    {% endif %}
+
+    <form action="/object_detection" method="post" enctype="multipart/form-data">
+        <!-- Dosya seçme alanı -->
+        <label for="image" class="custom-file-input">
+            <span>Dosya Seç</span>
+        </label>
+        <input type="file" id="image" name="image" accept="image/*">
+
+        <!-- Yükle ve Tespit Et butonu -->
+        <input type="submit" value="Yükle ve Tespit Et">
+    </form>
+
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Nesne Adı</th>
+                <th>Çevirisi</th>
+                <th>Tespit Zamanı</th>
+                <th>Başarı Oranı</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in tespitler %}
+                <tr>
+                    <td>{{ row.nesne_adi }}</td>
+                    <td>{{ row.ceviri }}</td>
+                    <td>{{ row.tespit_zamani }}</td>
+                    <td>{{ row.oran }}</td>
+                    <td>
+                        <!-- Sil butonunu bir form içine alın -->
+                        <button onclick="confirmDelete('{{ row.id }}', '{{ row.nesne_adi }}')" class="delete-button">Sil</button>
+
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+
+    </table>
+
+
+
+</div>
+
+<script>
+function confirmDelete(detectionId, nesneAdi) {
+    console.log('Detection ID:', detectionId);
+    console.log('Nesne Adi:', nesneAdi);
+
+    if (confirm(detectionId + ' index silmek istediğinizden emin misiniz?')) {
+        // Silme işlemi için bir AJAX isteği gönderin
+        var currentUserID = {{ current_user_id|tojson }};
+        fetch('/delete_detection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: currentUserID, detection_id: detectionId, nesne_adi: nesneAdi }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Silme işlemi başarılıysa sayfayı yeniden yükleyin
+            location.reload();
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+    }
+}
+</script>
+</body>
+</html>

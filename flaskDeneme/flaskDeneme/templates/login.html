@@ -1,0 +1,35 @@
+<!-- login.html -->
+
+<!-- Giriş Sayfası -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş Sayfası</title>
+        <!-- Link the login-specific style.css file -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.style.css') }}">
+</head>
+<body>
+    <h1>Hoş Geldiniz!</h1>
+
+    <!-- Giriş formunu ekleyebilirsiniz -->
+    <form action="/login" method="post">
+        <label for="username">Kullanıcı Adı:</label>
+        <input type="text" id="username" name="username" required><br>
+        <label for="password">Şifre:</label>
+        <input type="password" id="password" name="password" required><br>
+        <input type="submit" value="Giriş Yap">
+    </form>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                {% if category == 'error' %}
+                    <p style="color: red;">{{ message }}</p>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</body>
+</html>

@@ -1,0 +1,258 @@
+MVC (Model-View-Controller) mimarisine daha uygun bir yapı oluşturmak için aşağıdaki gibi modüler bir yaklaşımı içeren kodları sunuyorum. Bu, app klasörünüzde routes, models ve controllers gibi alt klasörlerin bulunduğunu ve bu alt klasörler içinde ilgili dosyaların olduğunu varsayar:
+
+routes.py dosyanız:***************************************************************************************************************************
+
+# app/routes.py
+from flask import render_template, request, send_from_directory, redirect, url_for, session, flash, jsonify
+from PIL import Image
+import os
+from app.controllers.object_detection_controller import perform_object_detection, save_detection
+from app.controllers.user_controller import get_kullanici_tespitler
+from app import app
+
+uploads_folder = os.path.join(app.config['IMAGES_FOLDER'], 'uploads')
+detected_folder = os.path.join(app.config['IMAGES_FOLDER'], 'detected')
+
+# Eğer images klasörü yoksa oluştur
+if not os.path.exists(app.config['IMAGES_FOLDER']):
+    os.makedirs(app.config['IMAGES_FOLDER'])
+
+# Statik dosyaları servis etmek için
+@app.route('/images/<path:folder>/<path:filename>')
+def serve_images(folder, filename):
+    return send_from_directory(os.path.join(app.config['IMAGES_FOLDER'], folder), filename)
+
+# Index route'u modüler yapıldı
+@app.route('/')
+def index():
+    if 'username' in session:
+        username = session['username']
+        tespitler = get_kullanici_tespitler(username)
+        return render_template('index.html', tespitler=tespitler)
+    else:
+        return redirect(url_for('login'))
+
+# Object Detection route'u modüler yapıldı
+@app.route('/object_detection', methods=['POST'])
+def object_detection():
+    class_id = None
+    confidence = None
+    new_index = ""
+
+    if request.method == 'POST':
+        try:
+            for file_name in os.listdir(detected_folder):
+                file_path = os.path.join(detected_folder, file_name)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            for file_name in os.listdir(uploads_folder):
+                file_path = os.path.join(uploads_folder, file_name)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+
+            flash('')
+
+            uploaded_image = request.files['image']
+            image_path_original = os.path.join(uploads_folder, "uploaded_image.jpg")
+            uploaded_image.save(image_path_original)
+
+            image = Image.open(image_path_original)
+            width, height = image.size
+            new_size = (int(width * 0.5), int(height * 0.5))
+            resized_image = image.resize(new_size)
+            image_path_resized = os.path.join(uploads_folder, "uploaded_image_resized.jpg")
+            resized_image.save(image_path_resized)
+
+            detection_result = perform_object_detection(image_path_original, image_path_resized)
+
+            detected_image_path = os.path.join(detected_folder, "detected_image.jpg")
+            detection_result.save(detected_image_path)
+
+            username = session['username']
+            tespitler = get_kullanici_tespitler(username)
+
+            from app.controllers.result_controller import process_object_results
+            result_template = process_object_results(detection_result, detected_image_path, tespitler)
+
+            return result_template
+
+        except Exception as e:
+            print("Hata:", str(e))
+            flash('Bir hata oluştu, lütfen daha sonra tekrar deneyin.', 'error')
+
+    return 'Invalid Request'
+
+controllers/object_detection_controller.py dosyanız:***************************************************************************************************************************
+
+# app/controllers/object_detection_controller.py
+from app import app
+from PIL import Image
+from app.controllers.result_controller import save_detection
+
+rf = Roboflow(api_key="fcgvx4oACfbJ4Dxrf5NZ")
+project = rf.workspace().project("deneme2-mkqfr")
+model = project.version(7).model
+
+uploads_folder = os.path.join(app.config['IMAGES_FOLDER'], 'uploads')
+detected_folder = os.path.join(app.config['IMAGES_FOLDER'], 'detected')
+
+def perform_object_detection(image_path_original, image_path_resized):
+    result = model.predict(image_path_resized, confidence=50, overlap=30)
+    print(result)
+    return result
+
+def save_detection(new_index, detected_image_path, confidence):
+    connection = None
+    try:
+        connection = Database.get_connection()
+        cursor = connection.cursor()
+
+        username = session['username']
+        cursor.execute('SELECT id FROM nesnetespit.kullanicilar WHERE kullaniciadi = %s', (username,))
+        user_id = cursor.fetchone()['id']
+
+        cursor.execute(
+            'INSERT INTO nesnetespit.tespitedilennesneler (kullanici_id, nesne_id, resim, tespit_zamani,  oran) VALUES (%s, %s, %s, %s, %s)',
+            (user_id, new_index, detected_image_path, datetime.now(),  confidence)
+        )
+
+        connection.commit()
+        flash('Nesne tespit bilgileri başarıyla kaydedildi.', 'success')
+
+    except Exception as e:
+        print("MySQL Hatası:", str(e))
+        flash('Bir hata oluştu, lütfen daha sonra tekrar deneyin.', 'error')
+
+    return 'Invalid Request'
+
+controllers/user_controller.py dosyanız:***************************************************************************************************************************
+
+# app/controllers/user_controller.py
+from app.db import Database
+
+def get_kullanici_tespitler(username):
+    connection = Database.get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute('''
+        SELECT n.nesne_adi, n.ceviri, t.tespit_zamani, t.oran
+        FROM nesnetespit.tespitedilennesneler AS t
+        JOIN nesnetespit.nesneler AS n ON t.nesne_id = n.id
+        JOIN nesnetespit.kullanicilar AS k ON t.kullanici_id = k.id
+        WHERE k.kullaniciadi = %s
+    ''', (username,))
+
+    tespitler = cursor.fetchall()
+    return tespitler
+
+
+controllers/result_controller.py dosyanız:***************************************************************************************************************************
+# app/controllers/result_controller.py
+from flask import render_template, flash
+from app import app
+from datetime import datetime
+
+class_translation = {
+    "akilli telefon": "smartphone",
+    "bozuk para": "coin",
+    # ... diğer sınıflar
+}
+
+uploads_folder = os.path.join(app.config['IMAGES_FOLDER'], 'uploads')
+detected_folder = os.path.join(app.config['IMAGES_FOLDER'], 'detected')
+
+def process_object_results(detection_result, detected_image_path, tespitler):
+    object_results = []
+
+    for prediction in detection_result.predictions:
+        class_id = prediction['class_id']
+        print(class_id)
+
+        class_name = prediction['class']
+        class_translation_list = list(class_translation.keys())
+
+        if class_name in class_translation:
+            index = class_translation_list.index(class_name)
+            new_index = index + 1
+            print("Index:", index)
+        else:
+            print("Class not found in translation dictionary.")
+
+        confidence = round(prediction['confidence'], 2)
+        english_class = class_translation.get(class_name, 'Translation Not Found')
+        print(english_class)
+        save_detection(new_index, detected_image_path, confidence)
+        print("Sonsuz hata")
+
+        object_results.append({
+            'class': class_name,
+            'confidence': confidence,
+            'english_class': english_class
+        })
+
+    result_template = render_template('result.html', object_results=object_results,
+                                      detected_image_path=detected_image_path, tespitler=tespitler)
+
+    return result_template
+
+def save_detection(new_index, detected_image_path, confidence):
+    connection = None
+    try:
+        connection = Database.get_connection()
+        cursor = connection.cursor()
+
+        username = session['username']
+        cursor.execute('SELECT id FROM nesnetespit.kullanicilar WHERE kullaniciadi = %s', (username,))
+        user_id = cursor.fetchone()['id']
+
+        cursor.execute(
+            'INSERT INTO nesnetespit.tespitedilennesneler (kullanici_id, nesne_id, resim, tespit_zamani,  oran) VALUES (%s, %s, %s, %s, %s)',
+            (user_id, new_index, detected_image_path, datetime.now(),  confidence)
+        )
+
+        connection.commit()
+        flash('Nesne tespit bilgileri başarıyla kaydedildi.', 'success')
+
+    except Exception as e:
+        print("MySQL Hatası:", str(e))
+        flash('Bir hata oluştu, lütfen daha sonra tekrar deneyin.', 'error')
+
+    return 'Invalid Request'
+
+
+***************************************************************************************************************************
+
+Bu yapıyla, kodunuz daha modüler ve bakımı daha kolay hale gelmiştir. 
+app klasörü içinde __init__.py dosyasının olduğundan emin olun, 
+çünkü bu, uygulamanın bir paket olarak kabul edilmesini sağlar. Bu dosyayı şu şekilde oluşturabilirsiniz:
+
+# app/__init__.py
+from flask import Flask
+app = Flask(__name__)
+app.config['MYSQL_CONNECT_TIMEOUT'] = 3600
+app.config['IMAGES_FOLDER'] = 'images'
+app.secret_key = 'your_secret_key'
+
+from app import routes
+
+***************************************************************************************************************************
+
+flaskDeneme
+|-- images
+|-- static
+|   |-- css
+|   |   |-- style.css
+|   |-- js
+|   |   |-- main.js
+|-- templates
+|   |-- index.html
+|   |-- login.html
+|   |-- result.html
+|-- venv
+|-- app
+|   |-- __init__.py
+|   |-- main.py
+|   |-- roboflow.py
+|   |-- db.py
+|   |-- auth.py
+|   |-- detection.py

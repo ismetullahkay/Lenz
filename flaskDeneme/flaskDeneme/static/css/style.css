@@ -1,0 +1,156 @@
+/* Stil.css */
+
+body {
+    font-family: Arial, sans-serif;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.result-container, .form-container {
+    text-align: center;
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+li {
+    margin-bottom: 20px;
+}
+
+li button, h2 {
+    margin-top: 10px;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    margin-top: 10px;
+}
+
+label {
+    display: block;
+    margin-top: 10px;
+}
+
+input[type="file"], input[type="submit"], .custom-file-input {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+input[type="file"]:hover, input[type="submit"]:hover, .custom-file-input:hover {
+    background-color: #45a049;
+}
+
+button {
+    padding: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+.translations button {
+    margin-left: 10px;
+    background-color: #008CBA;
+    border-radius: 20px;
+}
+
+.translations button:hover {
+    background-color: #0077A3;
+}
+
+.translations {
+    margin-top: 10px;
+}
+
+.translations div {
+    margin-top: 5px;
+}
+
+.translations button {
+    margin-left: 5px;
+}
+
+.custom-file-input {
+    position: relative;
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.custom-file-input span {
+    display: block;
+    text-align: center;
+}
+
+.custom-file-input:hover {
+    background-color: #45a049;
+}
+
+#image {
+    display: none;
+}
+
+/* Adjusted styles for the table */
+.table-container {
+    width: 10%; /* Sayfa genişliğine göre ayarlayabilirsiniz */
+    margin: 20px auto; /* Sayfa ortasında hizalama */
+}
+
+table {
+    border-collapse: collapse;
+    width: 80%; /* Adjust the width as needed */
+    margin: 20px;
+}
+
+th, td {
+    max-width: 150px; /* Maksimum genişlik belirleyin */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Uzun metinlerin kırpılmasını sağlayın */
+    white-space: nowrap; /* Satır sonlarına kadar uzanan metinlerin kaydırılmasını önleyin */
+    text-align: center;
+}
+
+th {
+    background-color: #4CAF50;
+    color: white;
+}
+
+/* Adjusted styles for resim-container */
+.resim-container {
+    display: flex;
+    justify-content: space-between;
+}
+
+.left, .right {
+    width: 48%; /* Adjust the width as needed */
+}
+
+.left img, .right img {
+    max-width: 100%;
+    height: auto;
+}

@@ -1,0 +1,128 @@
+<!-- result.html -->
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nesne Tespiti Sonucu</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+</head>
+<body>
+    <div class="container">
+
+        <h1>Nesne Tespiti Sonucu</h1>
+        <!-- Nesne tespiti sonuçlarını gösterin -->
+        <ul>
+            {% for object_result in object_results %}
+                <li id="{{ object_result['class'] }}-item">
+                    {{ object_result['class'] }} - Güvenilirlik: {{ object_result['confidence'] }}
+                    <br>
+                    <button onclick="showEnglishTranslation('{{ object_result['english_class'] }}', '{{ object_result['class'] }}')">İngilizce Karşılığı</button>
+                </li>
+            {% endfor %}
+        </ul>
+
+        <!-- Detaylı sonucu gösterin -->
+        {% if detected_image_path %}
+            <div class="resim-container">
+
+
+
+            <div class="right">
+            <h2>Yüklenen Resim:</h2>
+            <img src="{{ url_for('serve_images', folder='uploads', filename='uploaded_image_resized.jpg') }}" alt="Yüklenen Resim">
+            </div>
+
+            <div class="left">
+            <h2>Tespit Edilen Resim:</h2>
+            <img src="{{ url_for('serve_images', folder='detected', filename='detected_image.jpg') }}" alt="Tespit Edilen Resim">
+            </div>
+
+            </div>
+
+            <!-- Formu sadece tespit sonuçları varsa göster -->
+            <form action="/">
+                <input type="submit" value="Ana Sayfaya Git">
+            </form>
+        {% endif %}
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Nesne Adı</th>
+                <th>Çevirisi</th>
+                <th>Tespit Zamanı</th>
+                <th>Oran</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in tespitler %}
+                <tr>
+                    <td>{{ row.nesne_adi }}</td>
+<!--                    <td><img src="{{ url_for('serve_images', folder='uploads', filename=row.resim) }}" alt="Uploaded Image"></td> -->
+                    <td>{{ row.ceviri }}</td>
+                    <td>{{ row.tespit_zamani }}</td>
+                    <td>{{ row.oran }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        function showEnglishTranslation(englishClass, turkishClass) {
+            var listItem = document.getElementById(turkishClass + "-item");
+
+            // İlgili li elementinin altına İngilizce çeviriyi ekleyin
+            var translationElement = document.createElement("div");
+            translationElement.innerHTML = "İngilizce Çevirisi: " + englishClass;
+
+            // Seslendirme butonunu ekleyin
+            var speakButton = document.createElement("button");
+            speakButton.innerHTML = "Seslendir";
+            speakButton.onclick = function() {
+                speakEnglishTranslation(englishClass);
+            };
+
+            // Seslendirme butonunu çeviri elementine ekleyin
+            translationElement.appendChild(speakButton);
+
+            // Çeviri elementini li elementine ekleyin
+            listItem.appendChild(translationElement);
+        }
+
+        function speakEnglishTranslation(englishText) {
+            // Seslendirme işlevselliği için POST isteği gönder
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/speak", true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            xhr.send("english_text=" + encodeURIComponent(englishText));
+        }
+        // Formu asenkron olarak göndermek için JavaScript kullanın
+        document.getElementById("objectDetectionForm").addEventListener("submit", function(event) {
+            event.preventDefault(); // Formun normal gönderimini engelle
+            var formData = new FormData(this);
+
+            // Tespit sonuçlarını içeren form verilerini gönderin
+            var objectResults = document.querySelectorAll('li[id$="-item"]');
+            objectResults.forEach(function(result) {
+                var objectId = result.id.split("-")[0];
+                var confidence = result.innerText.split(" ")[4];
+                formData.append("confidence_" + objectId, confidence);
+            });
+
+            // Formu POST isteği ile gönderin
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/save_detection", true);
+            xhr.send(formData);
+
+            // İsteğin tamamlanmasını bekleyin ve ardından sayfayı yeniden yükleyin veya başka bir işlem yapın
+            xhr.onload = function() {
+                location.reload();
+            };
+        });
+
+    </script>
+</body>
+</html>
